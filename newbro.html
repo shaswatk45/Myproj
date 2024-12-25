@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Task Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Previous styles remain the same */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .task-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+
+        .dark .task-card {
+            background-color: #2d2d2d;
+            color: #ffffff;
+        }
+
+        .priority-1 { background-color: #fee2e2; }
+        .priority-2 { background-color: #fef3c7; }
+        .priority-3 { background-color: #ecfccb; }
+        .priority-4 { background-color: #dbeafe; }
+        .priority-5 { background-color: #f3e8ff; }
+
+        .dark .priority-1 { background-color: #7f1d1d; }
+        .dark .priority-2 { background-color: #78350f; }
+        .dark .priority-3 { background-color: #3f6212; }
+        .dark .priority-4 { background-color: #1e40af; }
+        .dark .priority-5 { background-color: #5b21b6; }
+
+        .search-input {
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+    <script type="text/babel">
+        function TaskTracker() {
+            // Previous state variables remain
+            const [tasks, setTasks] = React.useState(() => {
+                const savedTasks = localStorage.getItem('tasks');
+                return savedTasks ? JSON.parse(savedTasks) : [
+                    {
+                        id: 1,
+                        name: "Sample Task",
+                        priority: 1,
+                        category: "Work",
+                        status: "Not Started",
+                        progress: 0,
+                        dueDate: new Date().toISOString().split('T')[0]
+                    }
+                ];
+            });
+            const [showForm, setShowForm] = React.useState(false);
+            const [darkMode, setDarkMode] = React.useState(false);
+            const [view, setView] = React.useState('pyramid');
+            const [search, setSearch] = React.useState('');
+            const [newTask, setNewTask] = React.useState({
+                name: '',
+                priority: 1,
+                category: '',
+                status: 'Not Started',
+                dueDate: new Date().toISOString().split('T')[0],
+            });
+
+            // Previous effects and functions remain the same
+            React.useEffect(() => {
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+            }, [tasks]);
+
+            React.useEffect(() => {
+                if (darkMode) {
+                    document.body.classList.add('dark');
+                } else {
+                    document.body.classList.remove('dark');
+                }
+            }, [darkMode]);
+
+            const addTask = (e) => {
+                e.preventDefault();
+                const task = {
+                    ...newTask,
+                    id: Date.now(),
+                    progress: 0
+                };
+                setTasks([...tasks, task]);
+                setShowForm(false);
+                setNewTask({
+                    name: '',
+                    priority: 1,
+                    category: '',
+                    status: 'Not Started',
+                    dueDate: new Date().toISOString().split('T')[0],
+                });
+            };
+
+            const deleteTask = (id) => {
+                setTasks(tasks.filter(task => task.id !== id));
+            };
+
+            const updateStatus = (id, newStatus) => {
+                setTasks(tasks.map(task =>
+                    task.id === id ? { ...task, status: newStatus } : task
+                ));
+            };
+
+            const updateProgress = (id, newProgress) => {
+                setTasks(tasks.map(task =>
+                    task.id === id ? { ...task, progress: newProgress } : task
+                ));
+            };
+
+            // Filter tasks based on search
+            const filteredTasks = tasks.filter(task =>
+                task.name.toLowerCase().includes(search.toLowerCase()) ||
+                task.category.toLowerCase().includes(search.toLowerCase())
+            );
+
+            const priorityGroups = filteredTasks.reduce((groups, task) => {
+                const priority = task.priority || 3;
+                if (!groups[priority]) groups[priority] = [];
+                groups[priority].push(task);
+                return groups;
+            }, {1: [], 2: [], 3: [], 4: [], 5: []});
+
+            function TaskCard({ task }) {
+                return (
+                    <div className={`task-card p-4 rounded shadow-md mb-2 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                        <div className="flex justify-between items-start mb-2">
+                            <h4 className="font-semibold">{task.name}</h4>
+                            <button 
+                                onClick={() => deleteTask(task.id)}
+                                className="text-red-500 hover:text-red-700"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'} mb-2`}>
+                            Category: {task.category}
+                        </div>
+                        <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'} mb-2`}>
+                            Due: {new Date(task.dueDate).toLocaleDateString()}
+                        </div>
+                        <div className="mb-2">
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                    className="bg-blue-500 rounded-full h-2"
+                                    style={{ width: `${task.progress}%` }}
+                                ></div>
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <select
+                                value={task.status}
+                                onChange={(e) => updateStatus(task.id, e.target.value)}
+                                className={`text-sm border rounded p-1 ${darkMode ? 'bg-gray-700 text-white' : ''}`}
+                            >
+                                <option>Not Started</option>
+                                <option>In Progress</option>
+                                <option>Completed</option>
+                            </select>
+                            <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={task.progress}
+                                onChange={(e) => updateProgress(task.id, parseInt(e.target.value))}
+                                className="w-24"
+                            />
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className={`max-w-5xl mx-auto p-4 ${darkMode ? 'dark' : ''}`}>
+                    <div className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                        <div className="text-center mb-6">
+                            <h1 className="text-3xl font-bold">Task Tracker</h1>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setView('grid')}
+                                    className={`px-4 py-2 rounded ${view === 'grid' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                                >
+                                    Grid View
+                                </button>
+                                <button
+                                    onClick={() => setView('pyramid')}
+                                    className={`px-4 py-2 rounded ${view === 'pyramid' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                                >
+                                    Pyramid View
+                                </button>
+                                <button
+                                    onClick={() => setDarkMode(!darkMode)}
+                                    className="px-4 py-2 rounded bg-gray-500 text-white"
+                                >
+                                    {darkMode ? 'Light Mode' : 'Dark Mode'}
+                                </button>
+                            </div>
+
+                            <input
+                                type="text"
+                                placeholder="Search tasks..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="search-input px-4 py-2 rounded border focus:outline-none"
+                            />
+
+                            <button
+                                onClick={() => setShowForm(true)}
+                                className="px-4 py-2 rounded bg-green-500 text-white"
+                            >
+                                Add Task
+                            </button>
+                        </div>
+                    </div>
+
+                    {view === 'pyramid' ? (
+                        <div className="space-y-3">
+                            {[1,2,3,4,5].map(priority => (
+                                <div 
+                                    key={priority}
+                                    style={{
+                                        marginLeft: `${(5 - priority) * 5}%`,
+                                        marginRight: `${(5 - priority) * 5}%`
+                                    }}
+                                >
+                                    <div className={`p-4 rounded priority-${priority}`}>
+                                        <h3 className="font-bold mb-2">Priority {priority}</h3>
+                                        {priorityGroups[priority].map(task => (
+                                            <TaskCard key={task.id} task={task} />
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {filteredTasks.map(task => (
+                                <TaskCard key={task.id} task={task} />
+                            ))}
+                        </div>
+                    )}
+
+                    {showForm && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                            <div className={`p-6 rounded-lg w-96 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                                <h2 className="text-xl font-bold mb-4">Add New Task</h2>
+                                <form onSubmit={addTask}>
+                                    <input
+                                        type="text"
+                                        placeholder="Task Name"
+                                        value={newTask.name}
+                                        onChange={e => setNewTask({...newTask, name: e.target.value})}
+                                        className="w-full p-2 mb-2 border rounded"
+                                        required
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Category"
+                                        value={newTask.category}
+                                        onChange={e => setNewTask({...newTask, category: e.target.value})}
+                                        className="w-full p-2 mb-2 border rounded"
+                                    />
+                                    <input
+                                        type="date"
+                                        value={newTask.dueDate}
+                                        onChange={e => setNewTask({...newTask, dueDate: e.target.value})}
+                                        className="w-full p-2 mb-2 border rounded"
+                                    />
+                                    <select
+                                        value={newTask.priority}
+                                        onChange={e => setNewTask({...newTask, priority: parseInt(e.target.value)})}
+                                        className="w-full p-2 mb-2 border rounded"
+                                    >
+                                        <option value={1}>Priority 1 (Most Urgent)</option>
+                                        <option value={2}>Priority 2</option>
+                                        <option value={3}>Priority 3</option>
+                                        <option value={4}>Priority 4</option>
+                                        <option value={5}>Priority 5 (Least Urgent)</option>
+                                    </select>
+                                    <div className="flex justify-end space-x-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowForm(false)}
+                                            className="px-4 py-2 rounded bg-gray-300"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="px-4 py-2 rounded bg-blue-500 text-white"
+                                        >
+                                            Add Task
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<TaskTracker />, document.getElementById('root'));
+    </script>
+</body>
+</html>
